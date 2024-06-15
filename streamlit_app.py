@@ -24,12 +24,15 @@ def delete_old_files(directory):
       file_path = os.path.join(root, filename)
       # Get the last modification time of the file
       last_modified = os.path.getmtime(file_path)
-      
+          
       # Check if the file is older than 5 minutes
       if current_time - last_modified > expiry_minutes:
         # Delete the file
-        os.remove(file_path)
-        st.write(f"Deleted: {file_path}")
+        try:
+          os.remove(file_path)
+          st.write(f"Deleted: {file_path}")
+        except:
+          st.write(f"Could not delete {file_path}")
 
 # Replace 'path/to/your/directory' with the actual directory path
 directory = '/tmp'
