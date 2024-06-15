@@ -1,84 +1,176 @@
 import streamlit as st
-import os
-import time
-import tempfile
 import zipfile
+from io import BytesIO
+import subprocess
+import tempfile
+import os
+from collections import OrderedDict
+from PyPDF2 import PdfWriter
+import time
 import uuid
 
 
 
-
-st.write ("init")
+st.title("ZIP to PDF Converter")
 
 # Create a UUID
 session_uuid = str(uuid.uuid4())
-st.write(session_uuid)
-
-st.write("listdir /tmp")
-st.write(os.listdir("/tmp"))
 
 
+# Accept 4 zip files
+zip_1 = st.file_uploader("Upload Covernote (if any)", type="zip")
+zip_2 = st.file_uploader("Upload Main Product", type="zip")
+zip_3 = st.file_uploader("Upload Annex (if any)", type="zip")
+zip_4 = st.file_uploader("Upload Distriubtion List", type="zip")
 
-# if uploaded_file is not None:
-#   # Save the uploaded file to /tmp/banana.html
-#   with open("/tmp/banana.html", "wb") as f:
-#     f.write(uploaded_file.read())
-#   st.success("File uploaded and saved to /tmp/banana.html")
+# Define function to convert html to pdf
+def html_to_pdf(html_file_path):
+    pdf_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    pdf_file.close()
 
-# try:
-#     with open("/tmp/banana.html", "rb") as f:
-#         data = f.read()
-#         st.download_button(label="Download", data=data, file_name="banana.html")
-#     st.write("file is found")
-# except:
-#     st.write("no file found")
+    command = [
+        "chromium",
+        "--headless",
+        "--no-sandbox",
+        "--disable-gpu",
+        "--no-pdf-header-footer",
+        "--print-to-pdf=" + pdf_file.name,
+        html_file_path,
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process.communicate()
 
+    return pdf_file.name
 
-# st.write(os.listdir("/tmp"))
+# Define function to unzip and pdf
+def unzip_and_pdf(zip_obj, comp_name):
 
-
-
-import tempfile
-import os
-
-with tempfile.TemporaryDirectory() as temp_dir:
-    # Create a temporary file inside the directory
-    filename = "temp_file.txt"
-    filepath = os.path.join(temp_dir, filename)
-    with open(filepath, 'w') as f:
-        f.write("This is some data in the temporary file")
-
-    # Print the contents of the temporary file (outside the with block for file access)
-    print(f"Contents of {filename} in temporary directory:")
-    with open(filepath, 'r') as f:
-        contents = f.read()
-        print(contents)
-
-
-
-with tempfile.TemporaryDirectory() as temp_dir:
-    uploaded_file = st.file_uploader("Upload File")
-
-    with zipfile.ZipFile(BytesIO(temp_dir), 'r') as zip_ref:
-        zip_ref.extractall(folder_name) # Note that zip file needs to be extracted to local disk so that the css/images can work.
-
-
+    st.write(f"Processing {comp_name}...")
 
     file_name = zip_obj.name
-    folder_name = "/tmp/" + file_name + "_" + session_uuid
-
+    # folder_name = "/tmp/" + file_name + "_" + session_uuid
+    
     zip_data = zip_obj.read()
+    # Create a temp folder
+    with tempfile.TemporaryDirectory() as folder_name:
+        # Unzip the file
+        with zipfile.ZipFile(BytesIO(zip_data), 'r') as zip_ref:
+            zip_ref.extractall(folder_name) # Note that zip file needs to be extracted to local disk so that the css/images can work.
+            
+        # Get list of files in the directory (this only looks at the parent directory, not the subdirectories.)
+        files = [f for f in os.listdir(folder_name) if os.path.isfile(os.path.join(folder_name, f))]
 
-    # Unzip the file
-                
-        st.write(f"...contents of {folder_name} is {zip_ref.namelist()}")
-        
-    # Get list of files in the directory (this only looks at the parent directory, not the subdirectories.)
-    files = [f for f in os.listdir(folder_name) if os.path.isfile(os.path.join(folder_name, f))]
+        for file in files:
+            if file.endswith(".html"):  # Check if filename ends with ".html"
+                st.write(f"...... processing {file}")
+                pdf_path = html_to_pdf(folder_name + "/" + file)
+                st.write(f"...... pdf path is {pdf_path}")
+                pdf_files[comp_name + "_" + file.replace(".html",".pdf")] = pdf_path
 
+
+pdf_files = OrderedDict() # To maintain insertion order, use this rather than a normal dictionary
+if zip_1:
+    unzip_and_pdf(zip_1, "covernote")
+if zip_2:
+    unzip_and_pdf(zip_2, "body")
+if zip_3:
+    unzip_and_pdf(zip_3, "annex")
+if zip_4:
+    unzip_and_pdf(zip_4, "distlist")
+
+
+# For debugging
+st.write(f"Individual pdf files...")
+st.json(pdf_files)
+for pdf_name, pdf_path in pdf_files.items():
+    st.download_button(label=pdf_name, data=open(pdf_path, 'rb').read(), file_name=pdf_name)
+
+
+# Filter based on key presence and absence of "SMC" 
+list_A4 = []
+list_SMC = []
+for key, value in pdf_files.items():
+    if "index.pdf" in key and "SMC_index.pdf" not in key:
+        list_A4.append(value)
+    elif "SMC_index.pdf" in key:
+        list_SMC.append(value)
+
+
+# For debugging
+st.write("Sorted into A4 and SMC pdfs...")
+st.write(f"...A4 pdfs is {list_A4}")
+st.write (f"...SMC pdfs is {list_SMC}")
+
+
+# Combine the PDFs
+def combine_pdfs(pdf_files):
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    merger = PdfWriter()
+
+    for pdf in pdf_files:
+        merger.append(pdf)
+
+    merger.write(temp_file)
+    merger.close()
+    return temp_file.name
+
+combined_A4 = combine_pdfs(list_A4)
+combined_SMC = combine_pdfs(list_SMC)
+
+
+# For debugging
+st.write("Combined PDFs...")
+st.download_button(label="combined_A4.pdf", data=open(combined_A4, 'rb').read(), file_name="combined_A4.pdf")
+st.download_button(label="combined_SMC.pdf", data=open(combined_SMC, 'rb').read(), file_name="combined_SMC.pdf")
+
+
+
+
+
+
+import os
+
+def get_folder_size(path):
+  """
+  Calculates the total size of a directory and its subdirectories.
+
+  Args:
+      path: The path to the directory.
+
+  Returns:
+      The total size of the directory in bytes.
+  """
+  total_size = 0
+  for root, _, files in os.walk(path):
     for file in files:
-        if file.endswith(".html"):  # Check if filename ends with ".html"
-            st.write(f"...... processing {file}")
-            pdf_path = html_to_pdf(folder_name + "/" + file)
-            st.write(f"...... pdf path is {pdf_path}")
-            pdf_files[comp_name + "_" + file.replace(".html",".pdf")] = pdf_path
+      file_path = os.path.join(root, file)
+      try:
+        total_size += os.path.getsize(file_path)
+      except OSError:
+        # Handle potential permission errors or other issues
+        pass
+  return total_size
+
+# Example usage
+folder_path = "/tmp"
+folder_size = get_folder_size(folder_path)
+
+# Convert to human-readable format (optional)
+if folder_size > 1024**3:
+  folder_size = folder_size / (1024**3)
+  unit = "GB"
+elif folder_size > 1024**2:
+  folder_size = folder_size / (1024**2)
+  unit = "MB"
+elif folder_size > 1024:
+  folder_size = folder_size / 1024
+  unit = "KB"
+else:
+  unit = "bytes"
+
+st.write(f"Total size of folder '{folder_path}': {folder_size:.2f} {unit}")
+
+
+
+st.write("check tmp contents")
+st.write(os.listdir("/tmp"))
