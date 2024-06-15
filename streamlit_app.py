@@ -14,7 +14,7 @@ def delete_old_files(directory):
   # Get current time in seconds
   current_time = time.time()
   # Convert 1 minutes to seconds
-  five_minutes = 1 * 60
+  expiry_minutes = 1 * 60
 
   for root, _, files in os.walk(directory):
     for filename in files:
@@ -24,15 +24,15 @@ def delete_old_files(directory):
       last_modified = os.path.getmtime(file_path)
       
       # Check if the file is older than 5 minutes
-      if current_time - last_modified > five_minutes:
+      if current_time - last_modified > expiry_minutes:
         # Delete the file
         os.remove(file_path)
-        print(f"Deleted: {file_path}")
+        st.write(f"Deleted: {file_path}")
 
 # Replace 'path/to/your/directory' with the actual directory path
-directory = 'tmp'
+directory = '/tmp'
 delete_old_files(directory)
-print("Finished cleaning directory.")
+st.write("Finished cleaning directory.")
 
 
 
