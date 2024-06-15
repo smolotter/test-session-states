@@ -38,7 +38,7 @@ print("Finished cleaning directory.")
 
 
 
-uploaded_file = st.file_uploader("Upload HTML File", type="text/html")
+uploaded_file = st.file_uploader("Upload HTML File")
 
 if uploaded_file is not None:
   # Save the uploaded file to /tmp/banana.html
@@ -55,4 +55,3 @@ except:
     st.write("no file found")
 
 
-    
