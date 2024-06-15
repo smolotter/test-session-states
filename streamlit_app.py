@@ -4,6 +4,8 @@ import streamlit as st
 import os
 import time
 
+st.write ("init")
+
 def delete_old_files(directory):
   """
   Deletes files older than 5 minutes from the specified directory.
