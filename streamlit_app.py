@@ -6,42 +6,7 @@ import time
 
 st.write ("init")
 
-def delete_old_files(directory):
-  """
-  Deletes files older than 5 minutes from the specified directory.
-
-  Args:
-    directory: The path to the directory to scan.
-  """
-  # Get current time in seconds
-  current_time = time.time()
-  # Convert 1 minutes to seconds
-  expiry_minutes = 1 * 60
-
-  for root, _, files in os.walk(directory):
-    for filename in files:
-      # Get the full path of the file
-      file_path = os.path.join(root, filename)
-      # Get the last modification time of the file
-      last_modified = os.path.getmtime(file_path)
-          
-      # Check if the file is older than 5 minutes
-      if current_time - last_modified > expiry_minutes:
-        # Delete the file
-        try:
-          os.remove(file_path)
-          st.write(f"Deleted: {file_path}")
-        except:
-          st.write(f"Could not delete {file_path}")
-
-# Replace 'path/to/your/directory' with the actual directory path
-directory = '/tmp'
-delete_old_files(directory)
-st.write("Finished cleaning directory.")
-
-
-
-
+st.write(os.listdir("/tmp"))
 
 uploaded_file = st.file_uploader("Upload HTML File")
 
@@ -60,3 +25,4 @@ except:
     st.write("no file found")
 
 
+st.write(os.listdir("/tmp"))
